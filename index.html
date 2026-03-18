@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo Key</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(45deg, #000428, #004e92);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 40px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+            text-align: center;
+        }
+
+        h1 {
+            color: white;
+            font-size: 32px;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        .key-display {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 2px solid #00ff88;
+            display: none;
+            word-break: break-all;
+        }
+
+        .key-display.show {
+            display: block;
+            animation: glow 2s infinite;
+        }
+
+        @keyframes glow {
+            0% { box-shadow: 0 0 5px #00ff88; }
+            50% { box-shadow: 0 0 30px #00ff88; }
+            100% { box-shadow: 0 0 5px #00ff88; }
+        }
+
+        .key-title {
+            color: #00ff88;
+            font-size: 14px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .key-value {
+            color: white;
+            font-size: 16px;
+            line-height: 1.6;
+            font-family: monospace;
+            background: rgba(0, 255, 136, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .tao-key-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(45deg, #ff0066, #ff6600);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 0 20px rgba(255,102,0,0.5);
+        }
+
+        .tao-key-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255,102,0,0.8);
+        }
+
+        .tao-key-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading-container {
+            margin: 30px 0;
+        }
+
+        .loading-bar {
+            font-family: monospace;
+            font-size: 40px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0;
+            animation: colorChange 1s infinite;
+        }
+
+        @keyframes colorChange {
+            0% { color: #ff0000; text-shadow: 0 0 10px red; }
+            14% { color: #ff7700; text-shadow: 0 0 10px orange; }
+            28% { color: #ffff00; text-shadow: 0 0 10px yellow; }
+            42% { color: #00ff00; text-shadow: 0 0 10px lime; }
+            57% { color: #0000ff; text-shadow: 0 0 10px blue; }
+            71% { color: #4b0082; text-shadow: 0 0 10px indigo; }
+            85% { color: #8f00ff; text-shadow: 0 0 10px violet; }
+            100% { color: #ff0000; text-shadow: 0 0 10px red; }
+        }
+
+        .timer {
+            color: white;
+            font-size: 24px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+
+        .timer-number {
+            font-size: 48px;
+            background: linear-gradient(45deg, #ff0066, #ff6600);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .copy-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            border: none;
+            border-radius: 50px;
+            color: black;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: 0.3s;
+            text-transform: uppercase;
+            display: none;
+        }
+
+        .copy-btn.show {
+            display: block;
+            animation: slideUp 0.5s;
+        }
+
+        .copy-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,255,136,0.5);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            color: black;
+            padding: 15px 25px;
+            border-radius: 50px;
+            font-weight: bold;
+            transform: translateX(400px);
+            transition: 0.3s;
+            z-index: 1000;
+            box-shadow: 0 5px 20px rgba(0,255,136,0.5);
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ TẠO KEY ⚡</h1>
+
+        <button class="tao-key-btn" id="taoKeyBtn" onclick="startLoading()">
+            🚀 TẠO KEY
+        </button>
+
+        <div class="loading-container">
+            <div class="loading-bar" id="loadingBar"></div>
+            <div class="timer" id="timer">
+                <span class="timer-number" id="timerNumber">67</span> giây
+            </div>
+        </div>
+
+        <div class="key-display" id="keyDisplay">
+            <div class="key-title">🔑 KEY CỦA BẠN</div>
+            <div class="key-value" id="keyValue"></div>
+        </div>
+
+        <button class="copy-btn" id="copyBtn" onclick="copyKey()">
+            📋 COPY KEY
+        </button>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // Key 60 ký tự theo yêu cầu
+        const KEY = "RIOKEY_Xk9pLm4qRt8vB2nJ6hY3cF5wS7dA1Gf7Hy9jU2kL4pQ6wE8rT1yU3iO5pA7sD9fG1hJ3kL5";
+        
+        let timeLeft = 67;
+        let loadingInterval;
+        let colorInterval;
+        let bars = 0;
+
+        function startLoading() {
+            // Disable nút TẠO KEY
+            const btn = document.getElementById('taoKeyBtn');
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+
+            // Reset
+            timeLeft = 67;
+            bars = 0;
+            
+            // Ẩn key cũ nếu có
+            document.getElementById('keyDisplay').classList.remove('show');
+            document.getElementById('copyBtn').classList.remove('show');
+
+            // Bắt đầu đếm ngược
+            loadingInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timerNumber').textContent = timeLeft;
+
+                // Hiệu ứng loading bar với nhiều dấu =
+                bars = (bars % 10) + 1;
+                let barString = '';
+                for(let i = 0; i < bars; i++) {
+                    barString += '=';
+                }
+                document.getElementById('loadingBar').textContent = barString;
+
+                // Khi hết giờ
+                if(timeLeft <= 0) {
+                    clearInterval(loadingInterval);
+                    finishLoading();
+                }
+            }, 1000);
+        }
+
+        function finishLoading() {
+            // Hiển thị key
+            document.getElementById('keyValue').textContent = KEY;
+            document.getElementById('keyDisplay').classList.add('show');
+            document.getElementById('copyBtn').classList.add('show');
+            
+            // Reset loading bar
+            document.getElementById('loadingBar').textContent = '==========';
+            document.getElementById('timerNumber').textContent = '0';
+            
+            // Enable lại nút TẠO KEY
+            const btn = document.getElementById('taoKeyBtn');
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            
+            // Thông báo
+            showNotification('✅ Đã tạo key thành công!');
+        }
+
+        function copyKey() {
+            navigator.clipboard.writeText(KEY).then(() => {
+                showNotification('📋 Đã copy key vào clipboard!');
+            });
+        }
+
+        function showNotification(message) {
+            const noti = document.getElementById('notification');
+            noti.textContent = message;
+            noti.classList.add('show');
+            
+            setTimeout(() => {
+                noti.classList.remove('show');
+            }, 2000);
+        }
+    </script>
+</body>
+          </html>
