@@ -1,0 +1,390 @@
+-- Sailor Piece Auto Farm (Level 0-13000)
+-- UI: Rayfield Library (Dark Theme)
+
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local VirtualUser = game:GetService("VirtualUser")
+
+-- ==================== LOAD RAYFIELD UI ====================
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source.lua'))()
+
+-- Tạo Window với theme đen
+local Window = Rayfield:CreateWindow({
+    Name = "Sailor Piece Auto Farm",
+    LoadingTitle = "Loading...",
+    LoadingSubtitle = "Đang tải script...",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "SailorPiece",
+        FileName = "Settings"
+    },
+    KeySystem = false
+})
+
+-- Tab chính
+local MainTab = Window:CreateTab("Auto Farm", 4483345998)
+local TeleportTab = Window:CreateTab("Teleport", 4483345998)
+local InfoTab = Window:CreateTab("Thông tin", 4483345998)
+
+-- Sections
+local FarmSection = MainTab:CreateSection("⚔️ Cài đặt Auto Farm")
+local StatusSection = MainTab:CreateSection("📊 Trạng thái")
+local TeleportSection = TeleportTab:CreateSection("🏝️ Teleport đến đảo")
+local InfoSection = InfoTab:CreateSection("ℹ️ Thông tin script")
+
+-- ==================== BIẾN ====================
+local isFarming = false
+
+-- ==================== HÀM LẤY LEVEL ====================
+local function GetLevel()
+    local data = LocalPlayer:FindFirstChild("Data")
+    if data then
+        local lvl = data:FindFirstChild("Level")
+        if lvl then
+            return lvl.Value
+        end
+    end
+    local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+    if leaderstats then
+        local lvl = leaderstats:FindFirstChild("Level")
+        if lvl then
+            return lvl.Value
+        end
+        local lv = leaderstats:FindFirstChild("Lv")
+        if lv then
+            return lv.Value
+        end
+    end
+    return 0
+end
+
+-- ==================== HÀM TÌM NPC/QUÁI ====================
+local function FindObjectByName(name)
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") then
+            if string.find(string.lower(obj.Name), string.lower(name)) then
+                return obj
+            end
+        end
+    end
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") then
+            if string.find(string.lower(obj.Name), string.lower(name)) then
+                return obj
+            end
+        end
+    end
+    return nil
+end
+
+-- ==================== HÀM TELEPORT ====================
+local function TeleportTo(obj)
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local targetHrp = obj and obj:FindFirstChild("HumanoidRootPart")
+    
+    if hrp and targetHrp then
+        hrp.CFrame = CFrame.new(targetHrp.Position + Vector3.new(0, 4, 0))
+        task.wait(0.1)
+        return true
+    end
+    return false
+end
+
+-- ==================== HÀM TƯƠNG TÁC NPC ====================
+local function InteractWithNPC(npc)
+    if not npc then return false end
+    
+    TeleportTo(npc)
+    task.wait(0.3)
+    
+    local click = npc:FindFirstChild("ClickDetector")
+    if click then
+        click:Click()
+        return true
+    end
+    
+    local prompt = npc:FindFirstChild("ProximityPrompt")
+    if prompt then
+        prompt:InputHoldBegin()
+        task.wait(0.2)
+        prompt:InputHoldEnd()
+        return true
+    end
+    
+    return false
+end
+
+-- ==================== HÀM AUTO ATTACK ====================
+local function AutoAttack()
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    local tool = char:FindFirstChildWhichIsA("Tool")
+    if not tool then
+        local backpack = LocalPlayer:FindFirstChild("Backpack")
+        if backpack then
+            tool = backpack:FindFirstChildWhichIsA("Tool")
+            if tool then
+                tool.Parent = char
+                task.wait(0.1)
+            end
+        end
+    end
+    
+    if tool then
+        tool:Activate()
+        task.wait(0.2)
+    else
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton1(Vector2.new(0, 0))
+    end
+end
+
+-- ==================== XÁC ĐỊNH STAGE ====================
+local function GetStageByLevel(level)
+    if level >= 0 and level < 100 then
+        return "Quest 1", "Thief"
+    elseif level >= 100 and level < 250 then
+        return "Quest 2", "Thief Boss"
+    elseif level >= 250 and level < 500 then
+        return "Quest 3", "Monkey"
+    elseif level >= 500 and level < 750 then
+        return "Quest 4", "Monkey"
+    elseif level >= 750 and level < 1000 then
+        return "Quest 5", "Desest Bandit"
+    elseif level >= 1000 and level < 1500 then
+        return "Quest 6", "Desest Boss"
+    elseif level >= 1500 and level < 2000 then
+        return "Quest 7", "Frost Rogue"
+    elseif level >= 2000 and level < 3000 then
+        return "Quest 8", "Winter Warden"
+    elseif level >= 3000 and level < 4000 then
+        return "Quest 9", "Sorcerer Student"
+    elseif level >= 4000 and level < 5000 then
+        return "Quest 10", "Panda Sorcerer"
+    elseif level >= 5000 and level < 6250 then
+        return "Quest 11", "Hollow"
+    elseif level >= 6250 and level < 7000 then
+        return "Quest 12", "Strong Sorcerer"
+    elseif level >= 7000 and level < 8000 then
+        return "Quest 13", "Curse"
+    elseif level >= 8000 and level < 9000 then
+        return "Quest 14", "Slime Warrior"
+    elseif level >= 9000 and level < 10000 then
+        return "Quest 15", "Academy Teacher"
+    elseif level >= 10000 and level < 10750 then
+        return "Quest 16", "Swordsman"
+    elseif level >= 10750 and level < 11500 then
+        return "Quest 17", "Quincy"
+    elseif level >= 11500 and level < 12000 then
+        return "Quest 18", "Ninja"
+    elseif level >= 12000 and level <= 13000 then
+        return "Quest 19", "Arena Fighter"
+    end
+    return nil, nil
+end
+
+-- ==================== LOGIC FARM CHÍNH ====================
+local function StartFarm()
+    while isFarming do
+        local currentLevel = GetLevel()
+        
+        if currentLevel >= 13000 then
+            Rayfield:Notify({
+                Title = "Hoàn thành",
+                Content = "Đã đạt Level 13000!",
+                Duration = 3
+            })
+            isFarming = false
+            break
+        end
+        
+        local questName, monsterName = GetStageByLevel(currentLevel)
+        
+        if not questName then
+            task.wait(1)
+            goto continue
+        end
+        
+        local questNPC = FindObjectByName(questName)
+        if questNPC then
+            InteractWithNPC(questNPC)
+            task.wait(0.5)
+        end
+        
+        local monster = FindObjectByName(monsterName)
+        if monster then
+            TeleportTo(monster)
+            task.wait(0.2)
+            AutoAttack()
+        else
+            task.wait(1)
+        end
+        
+        ::continue::
+        task.wait(0.3)
+    end
+end
+
+-- ==================== UI RAYFIELD ====================
+
+-- Label hiển thị level
+local LevelLabel = StatusSection:CreateLabel("📊 Level hiện tại: " .. GetLevel())
+
+-- Cập nhật level label
+task.spawn(function()
+    while true do
+        task.wait(1)
+        LevelLabel:Set("📊 Level hiện tại: " .. GetLevel())
+    end
+end)
+
+-- Toggle Auto Farm
+FarmSection:CreateToggle({
+    Name = "⚙️ Bật/Tắt Auto Farm",
+    CurrentValue = false,
+    Callback = function(Value)
+        isFarming = Value
+        if Value then
+            Rayfield:Notify({
+                Title = "Auto Farm",
+                Content = "Đã bắt đầu farm!",
+                Duration = 2
+            })
+            task.spawn(StartFarm)
+        else
+            Rayfield:Notify({
+                Title = "Auto Farm",
+                Content = "Đã dừng farm!",
+                Duration = 2
+            })
+        end
+    end
+})
+
+-- Button kiểm tra level
+FarmSection:CreateButton({
+    Name = "🔍 Kiểm tra Level",
+    Callback = function()
+        Rayfield:Notify({
+            Title = "Level Info",
+            Content = "Level hiện tại: " .. GetLevel(),
+            Duration = 2
+        })
+    end
+})
+
+-- Button test teleport
+FarmSection:CreateButton({
+    Name = "🧪 Test Teleport đến NPC Quest",
+    Callback = function()
+        local level = GetLevel()
+        local questName = GetStageByLevel(level)
+        if questName then
+            local npc = FindObjectByName(questName)
+            if npc then
+                TeleportTo(npc)
+                Rayfield:Notify({
+                    Title = "Teleport",
+                    Content = "Đã teleport đến " .. questName,
+                    Duration = 2
+                })
+            else
+                Rayfield:Notify({
+                    Title = "Lỗi",
+                    Content = "Không tìm thấy NPC: " .. questName,
+                    Duration = 2
+                })
+            end
+        end
+    end
+})
+
+-- ==================== TELEPORT ĐẢO ====================
+local islands = {
+    "Starter Island",
+    "Jungle Island", 
+    "Desest Island",
+    "Snow Island",
+    "Shibuya Station",
+    "Hollow Island",
+    "Shinjuku Island",
+    "Slime Island",
+    "Academy Island",
+    "Judgement Island",
+    "Soul Dominion",
+    "Ninja Island",
+    "Lawless Island"
+}
+
+for _, islandName in ipairs(islands) do
+    TeleportSection:CreateButton({
+        Name = "🏝️ " .. islandName,
+        Callback = function()
+            local success = false
+            for _, obj in pairs(workspace:GetChildren()) do
+                if string.find(string.lower(obj.Name), string.lower(islandName)) then
+                    local hrp = obj:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        TeleportTo(obj)
+                        success = true
+                        break
+                    end
+                end
+            end
+            if success then
+                Rayfield:Notify({
+                    Title = "Teleport",
+                    Content = "Đã đến " .. islandName,
+                    Duration = 2
+                })
+            else
+                Rayfield:Notify({
+                    Title = "Lỗi",
+                    Content = "Không tìm thấy đảo: " .. islandName,
+                    Duration = 2
+                })
+            end
+        end
+    })
+end
+
+-- ==================== TAB THÔNG TIN ====================
+InfoSection:CreateLabel("🎮 Script: Sailor Piece Auto Farm")
+InfoSection:CreateLabel("📈 Level: 0 → 13000+")
+InfoSection:CreateLabel("⚡ Executor: Delta X")
+InfoSection:CreateLabel("🎨 UI: Rayfield (Dark Theme)")
+InfoSection:CreateLabel("👤 Tác giả: Custom Script")
+
+-- ==================== HIỂN THỊ LEVEL TRÊN MÀN HÌNH ====================
+local ScreenGui = Instance.new("ScreenGui")
+local LevelDisplay = Instance.new("TextLabel")
+
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+LevelDisplay.Parent = ScreenGui
+LevelDisplay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+LevelDisplay.BackgroundTransparency = 0.5
+LevelDisplay.Position = UDim2.new(0, 10, 0, 50)
+LevelDisplay.Size = UDim2.new(0, 200, 0, 35)
+LevelDisplay.Font = Enum.Font.GothamBold
+LevelDisplay.TextColor3 = Color3.fromRGB(255, 255, 255)
+LevelDisplay.TextSize = 16
+LevelDisplay.Text = "🏴‍☠️ Level: 0"
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+        LevelDisplay.Text = "🏴‍☠️ Level: " .. GetLevel()
+    end
+end)
+
+-- Thông báo khởi tạo
+Rayfield:Notify({
+    Title = "Sailor Piece",
+    Content = "✅ Đã load thành công! Bật Toggle để bắt đầu.",
+    Duration = 3
+})
