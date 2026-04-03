@@ -1,0 +1,283 @@
+-- Script cho Delta Executor
+-- Auto Farm Level 0-13000 Sailor Piece
+
+-- Kiểm tra Delta
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+-- ==================== UI ====================
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/Kavo.lua"))()
+local Window = Library.CreateLib("Sailor Piece Auto Farm", "DarkTheme")
+
+-- Tab chính
+local MainTab = Window:NewTab("Auto Farm")
+local FarmSection = MainTab:NewSection("Cài đặt Farm")
+
+-- ==================== BIẾN ====================
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local VirtualUser = game:GetService("VirtualUser")
+local isFarming = false
+
+-- ==================== HÀM LẤY LEVEL ====================
+function GetLevel()
+    local lvl = LocalPlayer:FindFirstChild("Data")
+    if lvl then
+        local level = lvl:FindFirstChild("Level")
+        if level then
+            return level.Value
+        end
+    end
+    return 0
+end
+
+-- ==================== HÀM TÌM NPC THEO TÊN ====================
+function FindNPC(npcName)
+    for i, v in pairs(Workspace:GetChildren()) do
+        if v:IsA("Model") and v:FindFirstChild("Humanoid") then
+            if string.find(string.lower(v.Name), string.lower(npcName)) then
+                return v
+            end
+        end
+    end
+    return nil
+end
+
+-- ==================== HÀM TÌM QUÁI ====================
+function FindMonster(monsterName)
+    local closest = nil
+    local distance = math.huge
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if not hrp then return nil end
+    
+    for i, v in pairs(Workspace:GetChildren()) do
+        if v:IsA("Model") and v:FindFirstChild("Humanoid") then
+            local root = v:FindFirstChild("HumanoidRootPart")
+            if root and string.find(string.lower(v.Name), string.lower(monsterName)) then
+                local dist = (hrp.Position - root.Position).Magnitude
+                if dist < distance then
+                    distance = dist
+                    closest = v
+                end
+            end
+        end
+    end
+    return closest
+end
+
+-- ==================== HÀM TELEPORT ====================
+function TeleportTo(target)
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local targetRoot = target:FindFirstChild("HumanoidRootPart")
+    
+    if hrp and targetRoot then
+        hrp.CFrame = CFrame.new(targetRoot.Position + Vector3.new(0, 4, 0))
+        task.wait(0.1)
+        return true
+    end
+    return false
+end
+
+-- ==================== HÀM TƯƠNG TÁC ====================
+function InteractNPC(npc)
+    local npcModel = npc
+    if not npcModel then return false end
+    
+    TeleportTo(npcModel)
+    task.wait(0.3)
+    
+    -- Tìm ClickDetector hoặc ProximityPrompt
+    local detector = npcModel:FindFirstChild("ClickDetector")
+    if detector then
+        detector:Click()
+        return true
+    end
+    
+    local prompt = npcModel:FindFirstChild("ProximityPrompt")
+    if prompt then
+        prompt:InputHoldBegin()
+        task.wait(0.2)
+        prompt:InputHoldEnd()
+        return true
+    end
+    
+    return false
+end
+
+-- ==================== HÀM AUTO ATTACK ====================
+function AutoAttack()
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    -- Lấy tool hiện tại
+    local tool = char:FindFirstChildWhichIsA("Tool")
+    if not tool then
+        local backpack = LocalPlayer:FindFirstChild("Backpack")
+        if backpack then
+            tool = backpack:FindFirstChildWhichIsA("Tool")
+            if tool then
+                tool.Parent = char
+                task.wait(0.1)
+            end
+        end
+    end
+    
+    if tool then
+        tool:Activate()
+        task.wait(0.2)
+    else
+        -- Mô phỏng click nếu không có tool
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton1(Vector2.new(0, 0))
+    end
+end
+
+-- ==================== LOGIC FARM ====================
+function GetCurrentStage()
+    local level = GetLevel()
+    
+    if level >= 0 and level < 100 then
+        return { quest = "Quest 1", monster = "Thief", minLv = 0, maxLv = 100 }
+    elseif level >= 100 and level < 250 then
+        return { quest = "Quest 2", monster = "Thief Boss", minLv = 100, maxLv = 250 }
+    elseif level >= 250 and level < 500 then
+        return { quest = "Quest 3", monster = "Monkey", minLv = 250, maxLv = 500 }
+    elseif level >= 500 and level < 750 then
+        return { quest = "Quest 4", monster = "Monkey", minLv = 500, maxLv = 750 }
+    elseif level >= 750 and level < 1000 then
+        return { quest = "Quest 5", monster = "Desest Bandit", minLv = 750, maxLv = 1000 }
+    elseif level >= 1000 and level < 1500 then
+        return { quest = "Quest 6", monster = "Desest Boss", minLv = 1000, maxLv = 1500 }
+    elseif level >= 1500 and level < 2000 then
+        return { quest = "Quest 7", monster = "Frost Rogue", minLv = 1500, maxLv = 2000 }
+    elseif level >= 2000 and level < 3000 then
+        return { quest = "Quest 8", monster = "Winter Warden", minLv = 2000, maxLv = 3000 }
+    elseif level >= 3000 and level < 4000 then
+        return { quest = "Quest 9", monster = "Sorcerer Student", minLv = 3000, maxLv = 4000 }
+    elseif level >= 4000 and level < 5000 then
+        return { quest = "Quest 10", monster = "Panda Sorcerer", minLv = 4000, maxLv = 5000 }
+    elseif level >= 5000 and level < 6250 then
+        return { quest = "Quest 11", monster = "Hollow", minLv = 5000, maxLv = 6250 }
+    elseif level >= 6250 and level < 7000 then
+        return { quest = "Quest 12", monster = "Strong Sorcerer", minLv = 6250, maxLv = 7000 }
+    elseif level >= 7000 and level < 8000 then
+        return { quest = "Quest 13", monster = "Curse", minLv = 7000, maxLv = 8000 }
+    elseif level >= 8000 and level < 9000 then
+        return { quest = "Quest 14", monster = "Slime Warrior", minLv = 8000, maxLv = 9000 }
+    elseif level >= 9000 and level < 10000 then
+        return { quest = "Quest 15", monster = "Academy Teacher", minLv = 9000, maxLv = 10000 }
+    elseif level >= 10000 and level < 10750 then
+        return { quest = "Quest 16", monster = "Swordsman", minLv = 10000, maxLv = 10750 }
+    elseif level >= 10750 and level < 11500 then
+        return { quest = "Quest 17", monster = "Quincy", minLv = 10750, maxLv = 11500 }
+    elseif level >= 11500 and level < 12000 then
+        return { quest = "Quest 18", monster = "Ninja", minLv = 11500, maxLv = 12000 }
+    elseif level >= 12000 and level < 13000 then
+        return { quest = "Quest 19", monster = "Arena Fighter", minLv = 12000, maxLv = 13000 }
+    end
+    
+    return nil
+end
+
+function StartFarm()
+    while isFarming do
+        local currentLevel = GetLevel()
+        
+        -- Dừng nếu đạt max level
+        if currentLevel >= 13000 then
+            Library:Notification("Hoàn thành", "Đã đạt Level 13000!", 3)
+            isFarming = false
+            break
+        end
+        
+        local stage = GetCurrentStage()
+        if not stage then
+            task.wait(1)
+            goto continue
+        end
+        
+        -- Hiển thị thông báo mỗi 10 level
+        if currentLevel % 10 == 0 then
+            Library:Notification("Đang Farm", "Level: " .. currentLevel .. "/" .. stage.maxLv .. " | " .. stage.monster, 1)
+        end
+        
+        -- Tìm và tương tác với NPC Quest
+        local questNPC = FindNPC(stage.quest)
+        if questNPC then
+            InteractNPC(questNPC)
+            task.wait(0.5)
+        end
+        
+        -- Tìm và đánh quái
+        local monster = FindMonster(stage.monster)
+        if monster then
+            TeleportTo(monster)
+            task.wait(0.2)
+            AutoAttack()
+        else
+            -- Nếu không tìm thấy quái, chờ 1 giây
+            task.wait(1)
+        end
+        
+        ::continue::
+        task.wait(0.3)
+    end
+end
+
+-- ==================== UI BUTTON ====================
+local isFarmingUI = false
+
+FarmSection:NewToggle("Bật/Tắt Auto Farm", "Auto farm từ level 0 đến 13000", function(state)
+    isFarming = state
+    isFarmingUI = state
+    if state then
+        Library:Notification("Auto Farm", "Đã bắt đầu farm!", 2)
+        task.spawn(StartFarm)
+    else
+        Library:Notification("Auto Farm", "Đã dừng farm!", 2)
+    end
+end)
+
+FarmSection:NewButton("Kiểm tra Level", "Xem level hiện tại", function()
+    Library:Notification("Level Info", "Level hiện tại: " .. GetLevel(), 2)
+end)
+
+FarmSection:NewButton("Teleport đến NPC Quest", "Test teleport", function()
+    local stage = GetCurrentStage()
+    if stage then
+        local npc = FindNPC(stage.quest)
+        if npc then
+            TeleportTo(npc)
+            Library:Notification("Teleport", "Đã teleport đến " .. stage.quest, 2)
+        else
+            Library:Notification("Lỗi", "Không tìm thấy NPC: " .. stage.quest, 2)
+        end
+    end
+end)
+
+-- ==================== HIỂN THỊ LEVEL TRÊN MÀN HÌNH ====================
+local ScreenGui = Instance.new("ScreenGui")
+local TextLabel = Instance.new("TextLabel")
+
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+TextLabel.Parent = ScreenGui
+TextLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+TextLabel.BackgroundTransparency = 0.5
+TextLabel.Position = UDim2.new(0, 10, 0, 50)
+TextLabel.Size = UDim2.new(0, 200, 0, 30)
+TextLabel.Font = Enum.Font.GothamBold
+TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextLabel.TextSize = 18
+TextLabel.Text = "Level: " .. GetLevel()
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+        TextLabel.Text = "🏴‍☠️ Level: " .. GetLevel()
+    end
+end)
+
+Library:Notification("Sailor Piece", "Đã load thành công! Bật Toggle để farm.", 3)
