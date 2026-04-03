@@ -1,0 +1,605 @@
+-- Load Orion Library
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/Qanuir/orion-ui/refs/heads/main/source.lua"))()
+
+-- Tạo Window
+local Window = OrionLib:MakeWindow({
+    Name = "Sailor Piece | Auto Farm Level (0-13000+)",
+    HidePremium = true,
+    SaveConfig = true,
+    ConfigFolder = "SailorPieceAutoFarm",
+    IntroEnabled = true,
+    IntroText = "Loading Auto Farm Level 0-13000..."
+})
+
+-- Tạo Tab chính
+local MainTab = Window:MakeTab({
+    Name = "Auto Farm",
+    Icon = "rbxassetid://4483345998"
+})
+
+-- Biến toàn cục
+local isFarming = false
+local farmingTask = nil
+local selectedIsland = "Starter Island"
+
+-- ==================== CẤU HÌNH CÁC STAGE (FIX 2 NPC) ====================
+local Stages = {
+    -- Starter Island (0-250) - 2 NPC
+    { minLevel = 0, maxLevel = 100, questNPC = "Quest 1", monsterKeyword = "Thief", islandName = "Starter Island" },
+    { minLevel = 100, maxLevel = 250, questNPC = "Quest 2", monsterKeyword = "Thief Boss", islandName = "Starter Island" },
+    -- Jungle Island (250-750) - 2 NPC
+    { minLevel = 250, maxLevel = 500, questNPC = "Quest 3", monsterKeyword = "Monkey", islandName = "Jungle Island" },
+    { minLevel = 500, maxLevel = 750, questNPC = "Quest 4", monsterKeyword = "Monkey", islandName = "Jungle Island" },
+    -- Desest Island (750-1500) - 2 NPC
+    { minLevel = 750, maxLevel = 1000, questNPC = "Quest 5", monsterKeyword = "Desest Bandit", islandName = "Desest Island" },
+    { minLevel = 1000, maxLevel = 1500, questNPC = "Quest 6", monsterKeyword = "Desest Boss", islandName = "Desest Island" },
+    -- Snow Island (1500-3000) - 2 NPC
+    { minLevel = 1500, maxLevel = 2000, questNPC = "Quest 7", monsterKeyword = "Frost Rogue", islandName = "Snow Island" },
+    { minLevel = 2000, maxLevel = 3000, questNPC = "Quest 8", monsterKeyword = "Winter Warden", islandName = "Snow Island" },
+    -- Shibuya Station (3000-5000) - 2 NPC
+    { minLevel = 3000, maxLevel = 4000, questNPC = "Quest 9", monsterKeyword = "Sorcerer Student", islandName = "Shibuya Station" },
+    { minLevel = 4000, maxLevel = 5000, questNPC = "Quest 10", monsterKeyword = "Panda Sorcerer", islandName = "Shibuya Station" },
+    -- Hollow Island (5000-6250) - 1 NPC
+    { minLevel = 5000, maxLevel = 6250, questNPC = "Quest 11", monsterKeyword = "Hollow", islandName = "Hollow Island" },
+    -- Shinjuku Island (6250-8000) - 2 NPC
+    { minLevel = 6250, maxLevel = 7000, questNPC = "Quest 12", monsterKeyword = "Strong Sorcerer", islandName = "Shinjuku Island" },
+    { minLevel = 7000, maxLevel = 8000, questNPC = "Quest 13", monsterKeyword = "Curse", islandName = "Shinjuku Island" },
+    -- Slime Island (8000-9000) - 1 NPC
+    { minLevel = 8000, maxLevel = 9000, questNPC = "Quest 14", monsterKeyword = "Slime Warrior", islandName = "Slime Island" },
+    -- Academy Island (9000-10000) - 1 NPC
+    { minLevel = 9000, maxLevel = 10000, questNPC = "Quest 15", monsterKeyword = "Academy Teacher", islandName = "Academy Island" },
+    -- Judgement Island (10000-10750) - 1 NPC
+    { minLevel = 10000, maxLevel = 10750, questNPC = "Quest 16", monsterKeyword = "Swordsman", islandName = "Judgement Island" },
+    -- Soul Dominion (10750-11500) - 1 NPC
+    { minLevel = 10750, maxLevel = 11500, questNPC = "Quest 17", monsterKeyword = "Quincy", islandName = "Soul Dominion" },
+    -- Ninja Island (11500-12000) - 1 NPC
+    { minLevel = 11500, maxLevel = 12000, questNPC = "Quest 18", monsterKeyword = "Ninja", islandName = "Ninja Island" },
+    -- Lawless Island (12000-13000+) - 1 NPC
+    { minLevel = 12000, maxLevel = 99999, questNPC = "Quest 19", monsterKeyword = "Arena Fighter", islandName = "Lawless Island" },
+}
+
+-- ==================== HÀM TIỆN ÍCH ====================
+
+-- Hàm lấy Level (xử lý cả 0)
+local function GetCurrentLevel()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return 0 end
+    
+    local leaderstats = player:FindFirstChild("leaderstats")
+    if leaderstats then
+        local levelStat = leaderstats:FindFirstChild("Level")
+        if levelStat then return levelStat.Value end
+        
+        local lvStat = leaderstats:FindFirstChild("Lv")
+        if lvStat then return lvStat.Value end
+    end
+    
+    for _, child in ipairs(player:GetChildren()) do
+        if child:IsA("IntValue") and (child.Name:lower() == "level" or child.Name:lower() == "lv") then
+            return child.Value
+        end
+    end
+    
+    if character then
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then
+            local level = humanoid:GetAttribute("Level")
+            if level then return level end
+        end
+    end
+    
+    return 0
+end
+
+-- Hàm tìm NPC theo tên
+local function FindNPCByName(keyword)
+    local workspace = game:GetService("Workspace")
+    local foundNPCs = {}
+    
+    -- Tìm trong workspace
+    for _, model in ipairs(workspace:GetChildren()) do
+        local humanoid = model:FindFirstChild("Humanoid")
+        local humanoidRoot = model:FindFirstChild("HumanoidRootPart")
+        
+        if humanoid and humanoidRoot and humanoid.Health > 0 then
+            local name = model.Name
+            if string.find(string.lower(name), string.lower(keyword)) then
+                table.insert(foundNPCs, {
+                    Name = name,
+                    Model = model,
+                    Humanoid = humanoid,
+                    RootPart = humanoidRoot
+                })
+            end
+        end
+    end
+    
+    -- Tìm trong folder con
+    if #foundNPCs == 0 then
+        for _, descendant in ipairs(workspace:GetDescendants()) do
+            if descendant:IsA("Model") then
+                local humanoid = descendant:FindFirstChild("Humanoid")
+                local humanoidRoot = descendant:FindFirstChild("HumanoidRootPart")
+                
+                if humanoid and humanoidRoot and humanoid.Health > 0 then
+                    local name = descendant.Name
+                    if string.find(string.lower(name), string.lower(keyword)) then
+                        table.insert(foundNPCs, {
+                            Name = name,
+                            Model = descendant,
+                            Humanoid = humanoid,
+                            RootPart = humanoidRoot
+                        })
+                    end
+                end
+            end
+        end
+    end
+    
+    return foundNPCs
+end
+
+-- Hàm tìm NPC Quest
+local function FindQuestNPC(questName)
+    -- Thử tìm trực tiếp
+    local npcs = FindNPCByName(questName)
+    if #npcs > 0 then
+        return npcs[1]
+    end
+    
+    -- Thử tìm với "NPC:" prefix
+    local altNPCs = FindNPCByName("NPC:" .. questName)
+    if #altNPCs > 0 then
+        return altNPCs[1]
+    end
+    
+    return nil
+end
+
+-- Hàm tìm quái vật
+local function FindMonster(keyword)
+    local monsters = FindNPCByName(keyword)
+    if #monsters > 0 then
+        return monsters[1]
+    end
+    return nil
+end
+
+-- Hàm dịch chuyển
+local function TeleportToTarget(targetData)
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    local humanoidRoot = character and character:FindFirstChild("HumanoidRootPart")
+    
+    if not character or not humanoidRoot or not targetData or not targetData.RootPart then
+        return false
+    end
+    
+    local targetPos = targetData.RootPart.Position
+    local teleportPos = Vector3.new(targetPos.X, targetPos.Y + 4, targetPos.Z)
+    
+    humanoidRoot.CFrame = CFrame.new(teleportPos)
+    humanoidRoot.CFrame = CFrame.lookAt(teleportPos, targetPos)
+    
+    task.wait(0.1)
+    return true
+end
+
+-- Hàm tương tác NPC
+local function InteractWithNPC(npcData)
+    if not npcData or not npcData.Model then
+        return false
+    end
+    
+    TeleportToTarget(npcData)
+    task.wait(0.3)
+    
+    local model = npcData.Model
+    
+    for _, child in ipairs(model:GetDescendants()) do
+        if child:IsA("ProximityPrompt") then
+            child:InputHoldBegin()
+            task.wait(0.2)
+            child:InputHoldEnd()
+            return true
+        end
+        
+        if child:IsA("ClickDetector") then
+            child:Click()
+            task.wait(0.2)
+            return true
+        end
+        
+        if child:IsA("Dialog") then
+            local dialogChoice = child:FindFirstChild("DialogChoice")
+            if dialogChoice then
+                dialogChoice:Activate()
+            end
+            return true
+        end
+    end
+    
+    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Quest")
+    if remote and remote:IsA("RemoteEvent") then
+        remote:FireServer(model)
+        return true
+    end
+    
+    return false
+end
+
+-- Hàm Auto Attack
+local function AutoAttackMonster(monsterData)
+    if not monsterData or not monsterData.Humanoid then
+        return false
+    end
+    
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    local humanoidRoot = character and character:FindFirstChild("HumanoidRootPart")
+    
+    if not character or not humanoidRoot then
+        return false
+    end
+    
+    TeleportToTarget(monsterData)
+    task.wait(0.2)
+    
+    -- Auto swing tool
+    for _, tool in ipairs(character:GetChildren()) do
+        if tool:IsA("Tool") then
+            tool:Activate()
+            task.wait(0.3)
+            return true
+        end
+    end
+    
+    -- Auto attack remote
+    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Attack")
+    if remote and remote:IsA("RemoteEvent") then
+        remote:FireServer(monsterData.Model)
+        task.wait(0.3)
+        return true
+    end
+    
+    return false
+end
+
+-- Hàm Teleport đến đảo (FIX - có teleport thực sự)
+local function TeleportToIsland(islandName)
+    local workspace = game:GetService("Workspace")
+    local player = game.Players.LocalPlayer
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if not hrp then
+        return false
+    end
+    
+    -- Tìm island trong workspace
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj.Name:lower():find(islandName:lower()) then
+            -- Tìm spawn location hoặc vị trí đảo
+            local spawnLoc = obj:FindFirstChild("SpawnLocation")
+            if spawnLoc and spawnLoc:IsA("SpawnLocation") then
+                hrp.CFrame = spawnLoc.CFrame + Vector3.new(0, 5, 0)
+                return true
+            end
+            
+            -- Tìm HumanoidRootPart của đảo
+            local islandRoot = obj:FindFirstChild("HumanoidRootPart")
+            if islandRoot then
+                hrp.CFrame = islandRoot.CFrame + Vector3.new(0, 10, 0)
+                return true
+            end
+            
+            -- Teleport đến vị trí đảo (center)
+            local pos = obj:GetPivot()
+            hrp.CFrame = pos + Vector3.new(0, 10, 0)
+            return true
+        end
+    end
+    
+    -- Nếu không tìm thấy đảo, thử tìm theo tên trong game
+    local teleportRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Teleport")
+    if teleportRemote and teleportRemote:IsA("RemoteEvent") then
+        teleportRemote:FireServer(islandName)
+        return true
+    end
+    
+    return false
+end
+
+-- Hàm farm quái vật
+local function FarmMonstersUntilLevelTarget(stage, targetLevel)
+    local lastNotiLevel = 0
+    
+    while isFarming and GetCurrentLevel() < targetLevel do
+        local currentLevel = GetCurrentLevel()
+        
+        -- Thông báo mỗi 5 level hoặc 30 giây
+        if currentLevel > lastNotiLevel + 5 or lastNotiLevel == 0 then
+            lastNotiLevel = currentLevel
+            OrionLib:MakeNotification({
+                Name = "⚔️ Farming",
+                Content = string.format("Level: %d/%d | 🎯 %s", currentLevel, targetLevel, stage.monsterKeyword),
+                Time = 1
+            })
+        end
+        
+        local monster = FindMonster(stage.monsterKeyword)
+        
+        if monster then
+            AutoAttackMonster(monster)
+        else
+            task.wait(1)
+        end
+        
+        -- Kiểm tra quest và nhận lại nếu cần
+        if math.random(1, 20) == 1 then
+            local questNPC = FindQuestNPC(stage.questNPC)
+            if questNPC then
+                InteractWithNPC(questNPC)
+            end
+        end
+        
+        task.wait(0.3)
+    end
+    
+    return GetCurrentLevel() >= targetLevel
+end
+
+-- ==================== LOGIC FARM CHÍNH (FIX MAX LEVEL) ====================
+
+local function FarmLevel()
+    local currentLevel = GetCurrentLevel()
+    
+    -- THÊM DELAY KIỂM TRA LEVEL THỰC TẾ
+    task.wait(2)
+    currentLevel = GetCurrentLevel()
+    
+    -- Kiểm tra max level (13000)
+    if currentLevel >= 13000 then
+        OrionLib:MakeNotification({
+            Name = "🎉 HOÀN THÀNH 🎉",
+            Content = "Chúc mừng! Bạn đã đạt Level 13000!",
+            Time = 5
+        })
+        isFarming = false
+        return
+    end
+    
+    -- Tìm stage phù hợp
+    local currentStage = nil
+    for _, stage in ipairs(Stages) do
+        if currentLevel >= stage.minLevel and currentLevel < stage.maxLevel then
+            currentStage = stage
+            break
+        end
+    end
+    
+    if not currentStage then
+        -- Thử tìm stage cuối cùng nếu level cao hơn
+        for i = #Stages, 1, -1 do
+            if currentLevel >= Stages[i].minLevel then
+                currentStage = Stages[i]
+                break
+            end
+        end
+    end
+    
+    if not currentStage then
+        OrionLib:MakeNotification({
+            Name = "Lỗi",
+            Content = "Không tìm thấy stage phù hợp! Level: " .. currentLevel,
+            Time = 3
+        })
+        isFarming = false
+        return
+    end
+    
+    local targetLevel = math.min(currentStage.maxLevel, 13000)
+    
+    OrionLib:MakeNotification({
+        Name = "🏝️ Chuyển stage",
+        Content = string.format("Đảo: %s | Quest: %s | Farm: %s | Target: Level %d",
+            currentStage.islandName, currentStage.questNPC, currentStage.monsterKeyword, targetLevel),
+        Time = 4
+    })
+    
+    -- Teleport đến đảo trước
+    TeleportToIsland(currentStage.islandName)
+    task.wait(2)
+    
+    -- Tìm và nhận quest
+    local questNPC = FindQuestNPC(currentStage.questNPC)
+    
+    if questNPC then
+        InteractWithNPC(questNPC)
+        task.wait(1)
+    else
+        OrionLib:MakeNotification({
+            Name = "⚠️ Cảnh báo",
+            Content = "Không tìm thấy NPC: " .. currentStage.questNPC,
+            Time = 2
+        })
+    end
+    
+    -- Farm đến target
+    local reached = FarmMonstersUntilLevelTarget(currentStage, targetLevel)
+    
+    if reached and isFarming then
+        local newLevel = GetCurrentLevel()
+        if newLevel < 13000 then
+            task.wait(1)
+            FarmLevel() -- Chuyển stage tiếp theo
+        else
+            OrionLib:MakeNotification({
+                Name = "🎉 HOÀN THÀNH 🎉",
+                Content = "Đã đạt Level 13000!",
+                Time = 5
+            })
+            isFarming = false
+        end
+    end
+end
+
+-- Hàm bắt đầu
+local function StartAutoFarm()
+    if isFarming then
+        return
+    end
+    
+    isFarming = true
+    
+    local currentLevel = GetCurrentLevel()
+    
+    if currentLevel >= 13000 then
+        OrionLib:MakeNotification({
+            Name = "Auto Farm",
+            Content = "Bạn đã đạt Level 13000!",
+            Time = 3
+        })
+        isFarming = false
+        return
+    end
+    
+    OrionLib:MakeNotification({
+        Name = "🚀 Auto Farm",
+        Content = string.format("Bắt đầu từ Level %d → 13000", currentLevel),
+        Time = 3
+    })
+    
+    task.spawn(function()
+        FarmLevel()
+    end)
+end
+
+-- Hàm dừng
+local function StopAutoFarm()
+    if not isFarming then
+        return
+    end
+    isFarming = false
+    OrionLib:MakeNotification({
+        Name = "Auto Farm",
+        Content = "Đã dừng!",
+        Time = 2
+    })
+end
+
+-- ==================== UI ORION ====================
+
+-- Toggle Auto Farm
+MainTab:AddToggle({
+    Name = "Auto Farm Level (0 → 13000+)",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            StartAutoFarm()
+        else
+            StopAutoFarm()
+        end
+    end
+})
+
+-- Hiển thị Level
+local LevelLabel = MainTab:AddLabel("📊 Level hiện tại: " .. GetCurrentLevel())
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+        LevelLabel:Set("📊 Level hiện tại: " .. GetCurrentLevel())
+    end
+end))
+
+-- Button kiểm tra Level
+MainTab:AddButton({
+    Name = "🔍 Kiểm tra Level",
+    Callback = function()
+        OrionLib:MakeNotification({
+            Name = "Level Info",
+            Content = "Level: " .. GetCurrentLevel(),
+            Time = 2
+        })
+    end
+})
+
+-- ==================== TELEPORT ĐẢO (FIX - CÓ NÚT TELEPORT) ====================
+
+-- Dropdown chọn đảo
+local IslandDropdown = MainTab:AddDropdown({
+    Name = "🏝️ Chọn đảo",
+    Default = "Starter Island",
+    Options = {
+        "Starter Island", "Jungle Island", "Desest Island", "Snow Island",
+        "Shibuya Station", "Hollow Island", "Shinjuku Island", "Slime Island",
+        "Academy Island", "Judgement Island", "Soul Dominion", "Ninja Island",
+        "Lawless Island"
+    },
+    Callback = function(Value)
+        if Value ~= "" then
+            selectedIsland = Value
+        end
+    end
+})
+
+-- Nút Teleport riêng (FIX)
+MainTab:AddButton({
+    Name = "✨ Teleport đến đảo đã chọn",
+    Callback = function()
+        local success = TeleportToIsland(selectedIsland)
+        if success then
+            OrionLib:MakeNotification({
+                Name = "Teleport",
+                Content = "Đã đến: " .. selectedIsland,
+                Time = 2
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "Lỗi",
+                Content = "Không tìm thấy đảo: " .. selectedIsland,
+                Time = 2
+            })
+        end
+    end
+})
+
+-- Button xem thông tin stage
+MainTab:AddButton({
+    Name = "🗺️ Stage hiện tại",
+    Callback = function()
+        local currentLevel = GetCurrentLevel()
+        local found = nil
+        for _, stage in ipairs(Stages) do
+            if currentLevel >= stage.minLevel and currentLevel < stage.maxLevel then
+                found = stage
+                break
+            end
+        end
+        if found then
+            OrionLib:MakeNotification({
+                Name = "Stage Info",
+                Content = string.format("Đảo: %s\nQuest: %s\nFarm: %s\nLevel: %d → %d",
+                    found.islandName, found.questNPC, found.monsterKeyword, found.minLevel, found.maxLevel),
+                Time = 5
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "Stage Info",
+                Content = "Level " .. currentLevel .. " | Đã gần max!",
+                Time = 2
+            })
+        end
+    end
+})
+
+-- ==================== KHỞI TẠO ====================
+OrionLib:Init()
+
+OrionLib:MakeNotification({
+    Name = "Sailor Piece Auto Farm",
+    Content = "✅ Đã load!\n📈 Level 0 → 13000+\n🔘 Bật Toggle để bắt đầu",
+    Time = 5
+})
